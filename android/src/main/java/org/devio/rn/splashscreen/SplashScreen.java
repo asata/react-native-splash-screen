@@ -52,102 +52,107 @@ public class SplashScreen {
             @Override
             public void run() {
                 if (!activity.isFinishing()) {
-                    mSplashDialog = new Dialog(activity, R.style.SplashScreen_Fullscreen);
-                    mSplashDialog.setContentView(R.layout.video_view);
-                    mSplashDialog.setCancelable(false);
+                    try {
+                        mSplashDialog = new Dialog(activity, R.style.SplashScreen_Fullscreen);
+                        mSplashDialog.setContentView(R.layout.video_view);
+                        mSplashDialog.setCancelable(false);
 
-                    Context context = activity.getApplicationContext();
+                        Context context = activity.getApplicationContext();
 
-                    String videoPath = "android.resource://" + context.getPackageName() + "/" + R.raw.splashscreen;
+                        String videoPath = "android.resource://" + context.getPackageName() + "/" + R.raw.splashscreen;
 
-                    MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-                    retriever.setDataSource(context, Uri.parse(videoPath));
-                    int videoWidth = Integer.parseInt(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
-                    int videoHeight = Integer.parseInt(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
-                    retriever.release();
+                        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+                        retriever.setDataSource(context, Uri.parse(videoPath));
+                        int videoWidth = Integer.parseInt(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
+                        int videoHeight = Integer.parseInt(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
+                        retriever.release();
 
+                        VideoView videoView = (VideoView) mSplashDialog.findViewById(R.id.video_view);
+                        float viewHeight = videoView.getHeight();
+                        float viewWidth = videoView.getWidth();
 
-                    VideoView videoView = (VideoView) mSplashDialog.findViewById(R.id.video_view);
-                    float viewHeight = videoView.getHeight();
-                    float viewWidth = videoView.getWidth();
+                        float ratioWidth = viewWidth / videoWidth;
+                        float ratioHeight = viewHeight / videoHeight;
+                        int fullWidth;
+                        int fullHeight;
+                        if (ratioWidth < ratioHeight) {
+                            fullWidth = (int) (videoWidth * ratioWidth);
+                            fullHeight = (int) (videoHeight * ratioWidth);
+                        } else {
+                            fullWidth = (int) (videoWidth * ratioHeight);
+                            fullHeight = (int) (videoHeight * ratioHeight);
+                        }
 
-                    float ratioWidth = viewWidth / videoWidth;
-                    float ratioHeight = viewHeight / videoHeight;
-                    int fullWidth;
-                    int fullHeight;
-                    if (ratioWidth < ratioHeight) {
-                        fullWidth = (int) (videoWidth * ratioWidth);
-                        fullHeight = (int) (videoHeight * ratioWidth);
-                    } else {
-                        fullWidth = (int) (videoWidth * ratioHeight);
-                        fullHeight = (int) (videoHeight * ratioHeight);
-                    }
+                        videoView.getLayoutParams().width = fullWidth;
+                        videoView.getLayoutParams().height = fullHeight;
 
-                    videoView.getLayoutParams().width = fullWidth;
-                    videoView.getLayoutParams().height = fullHeight;
+                        videoView.setVideoPath(videoPath);
 
-                    videoView.setVideoPath(videoPath);
-
-                    boolean allowAudio = options.hasKey("allowAudio") ? options.getBoolean("allowAudio") : false;
-                    if (!allowAudio) {
-                        videoView.setAudioFocusRequest(AudioManager.AUDIOFOCUS_NONE);
-                    }
-
-                    videoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener(){
-                        @Override
-                        public void onPrepared(MediaPlayer mp) {
-                            try {
-                                if (!allowAudio) {
-                                    mp.setVolume(0f, 0f);
-                                }
-                            } catch (Exception e) {
-                                e.printStackTrace();
+                        boolean allowAudio = options.hasKey("allowAudio") ? options.getBoolean("allowAudio") : false;
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {                        
+                            if (!allowAudio) {
+                                videoView.setAudioFocusRequest(AudioManager.AUDIOFOCUS_NONE);
                             }
                         }
-                    });
 
-                    videoView.start();
-
-                    lastVideoView = videoView;
-
-                    loopVideo = options.hasKey("loopVideo") ? options.getBoolean("loopVideo") : false;
-                    double startSecond = options.hasKey("startSecond") ? options.getDouble("startSecond") : 0;
-                    if (startSecond > 0) {
-                        videoView.seekTo((int) startSecond * 1000);
-                    }
-                    
-                    int pauseAfterMs = options.hasKey("pauseAfterMs") ? options.getInt("pauseAfterMs") : 0;
-                    if (pauseAfterMs > 0) {
-                        videoPauseRunnable = new Runnable() {
+                        videoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener(){
                             @Override
-                            public void run() {
-                                if (lastVideoView != null) {
-                                    lastVideoView.pause();
+                            public void onPrepared(MediaPlayer mp) {
+                                try {
+                                    if (!allowAudio) {
+                                        mp.setVolume(0f, 0f);
+                                    }
+                                } catch (Exception e) {
+                                    e.printStackTrace();
                                 }
                             }
-                        };
-                        videoView.postDelayed(videoPauseRunnable, pauseAfterMs);
-                    }
+                        });
 
-                    if (!mSplashDialog.isShowing()) {
-                        mSplashDialog.show();
-                    }
+                        videoView.start();
 
-                    videoView.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-                        @Override
-                        public void onCompletion(MediaPlayer mp) {
-                            manageVideoEnd(activity);
+                        lastVideoView = videoView;
+
+                        loopVideo = options.hasKey("loopVideo") ? options.getBoolean("loopVideo") : false;
+                        double startSecond = options.hasKey("startSecond") ? options.getDouble("startSecond") : 0;
+                        if (startSecond > 0) {
+                            videoView.seekTo((int) startSecond * 1000);
                         }
-                    });
-
-                    videoView.setOnErrorListener(new MediaPlayer.OnErrorListener() {
-                        @Override
-                        public boolean onError(MediaPlayer mp, int what, int extra) {
-                            Log.d("splashscreen video", "onError" + Integer.toString(what) + ", " + Integer.toString(extra));
-                            hideVideo(activity);
-                            return true;
+                        
+                        int pauseAfterMs = options.hasKey("pauseAfterMs") ? options.getInt("pauseAfterMs") : 0;
+                        if (pauseAfterMs > 0) {
+                            videoPauseRunnable = new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (lastVideoView != null) {
+                                        lastVideoView.pause();
+                                    }
+                                }
+                            };
+                            videoView.postDelayed(videoPauseRunnable, pauseAfterMs);
                         }
-                    });
+
+                        if (!mSplashDialog.isShowing()) {
+                            mSplashDialog.show();
+                        }
+
+                        videoView.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                            @Override
+                            public void onCompletion(MediaPlayer mp) {
+                                manageVideoEnd(activity);
+                            }
+                        });
+
+                        videoView.setOnErrorListener(new MediaPlayer.OnErrorListener() {
+                            @Override
+                            public boolean onError(MediaPlayer mp, int what, int extra) {
+                                Log.d("splashscreen video", "onError" + Integer.toString(what) + ", " + Integer.toString(extra));
+                                hideVideo(activity);
+                                return true;
+                            }
+                        });
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 }
             }
         });
@@ -165,7 +170,7 @@ public class SplashScreen {
         if (loopVideo) {
             resumeVideo(activity);
         } else {
-            hideVideo(activity);
+            // hideVideo(activity);
         }
     }
 
